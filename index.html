@@ -40,6 +40,25 @@ body.party .brand p{color:#f4cfe0}
 .restart{position:fixed;top:calc(env(safe-area-inset-top,0px) + 18px);right:max(18px,env(safe-area-inset-right,0px));width:44px;height:44px;border:0;border-radius:50%;background:var(--glass);color:var(--accent-deep);display:grid;place-items:center;cursor:pointer;padding:0;box-shadow:0 6px 24px rgba(120,40,80,.12);transition:transform .2s,background .2s}
 .restart:hover{transform:rotate(-30deg)}
 .restart svg{width:22px;height:22px}
+.restart.armed{background:var(--accent);color:#fff;transform:none}
+.restart.armed::after{content:"再点一次重新开始";position:absolute;right:52px;top:50%;transform:translateY(-50%);white-space:nowrap;font-size:12px;letter-spacing:.06em;color:var(--accent-deep);background:var(--glass);padding:6px 10px;border-radius:999px;box-shadow:0 4px 14px rgba(120,40,80,.12)}
+
+.pill{position:fixed;top:calc(env(safe-area-inset-top,0px) + 18px);right:calc(max(18px,env(safe-area-inset-right,0px)) + 54px);height:44px;padding:0 18px;border:0;border-radius:999px;background:var(--glass);color:var(--accent-deep);font-family:var(--font-display);font-size:16px;letter-spacing:.06em;cursor:pointer;box-shadow:0 6px 24px rgba(120,40,80,.12)}
+.talk{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 168px);white-space:nowrap}
+.talk:hover{transform:translateX(-50%) translateY(-1px)}
+@media (hover:hover) and (pointer:fine){.talk{bottom:calc(env(safe-area-inset-bottom,0px) + 52px)}}
+.joy{position:fixed;left:max(24px,env(safe-area-inset-left,0px));bottom:calc(env(safe-area-inset-bottom,0px) + 28px);width:120px;height:120px;border-radius:50%;background:var(--glass);box-shadow:0 6px 24px rgba(120,40,80,.15);touch-action:none}
+.joy .knob{position:absolute;left:36px;top:36px;width:48px;height:48px;border-radius:50%;background:var(--accent);box-shadow:0 4px 12px rgba(217,74,124,.4);pointer-events:none}
+.keys-help{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);text-align:center;font-size:13px;letter-spacing:.06em;color:var(--ink-soft);margin:0;pointer-events:none;padding-left:16px;padding-right:16px}
+body.party .keys-help{color:#f4cfe0}
+.crosshair{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:rgba(255,255,255,.9);box-shadow:0 0 0 1.5px rgba(217,74,124,.55);pointer-events:none}
+@media (hover:hover) and (pointer:fine){.joy{display:none!important}}
+@media (hover:none){.keys-help{display:none!important}}
+.opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.opt{font:inherit;font-size:14px;border:1.5px solid var(--accent);background:#fff;color:var(--accent-deep);border-radius:999px;padding:7px 14px;cursor:pointer;transition:background .2s,color .2s}
+.opt:hover{background:#fff0f5}
+.opt.used{background:var(--accent);color:#fff}
+.opt:focus-visible,.pill:focus-visible{outline:3px solid var(--accent-deep);outline-offset:2px}
 
 .dock{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);display:flex;flex-direction:column;align-items:center;gap:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
 .dock > *{pointer-events:auto}
@@ -95,16 +114,24 @@ body.party .hint{color:#f4cfe0}
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
 </button>
 
+<button class="pill" id="exitWalk" hidden>回到太空</button>
+<button class="btn talk" id="talkBtn" hidden>聊聊</button>
+<div class="joy" id="joy" hidden aria-label="移动摇杆"><div class="knob" id="knob"></div></div>
+<p class="keys-help" id="keysHelp" hidden>WASD 走动 · Shift 跑 · 拖动鼠标环顾 · 靠近小猪按 E 聊天 · Esc 回到太空</p>
+<div class="crosshair" id="crosshair" hidden></div>
+
 <div class="dock" id="dock">
   <div class="noses" id="noses" role="list" aria-label="拜访进度"></div>
   <p class="hint" id="hint">拖动转动星球 · 点一只小猪去拜访它</p>
   <button class="btn" id="partyBtn" hidden>点亮整颗星球</button>
+  <button class="btn ghost" id="walkBtn">下去走走</button>
 </div>
 
 <section class="card" id="card" hidden aria-live="polite">
   <p class="eyebrow" id="cRole">国王</p>
   <h2 id="cName">苗苗大王</h2>
   <p class="line" id="cLine"></p>
+  <div class="opts" id="cOpts"></div>
   <div class="foot">
     <span class="count" id="cCount">已拜访 1 / 8</span>
     <button class="btn ghost" id="cClose">继续逛逛</button>
@@ -157,6 +184,31 @@ const ROLES = [
     line:'这里收着星球上所有的故事。最厚的那本叫《甘源源》，还在一页一页往下写呢。' },
 ];
 const BANNER_TEXT = '小猪统治宇宙';
+
+/* 和小猪聊天的选项：q 是你说的话，a 是小猪的回答，fx 是小猪的反应（jump 跳一下 / spin 转圈 / hearts 冒爱心 / dance 扭一扭） */
+const CHATS = [
+  [ { q:'参见大王', a:'平身平身！本王准你今天多吃一块蛋糕。', fx:'jump' },
+    { q:'我也想当一天国王', a:'准了！不过国王每天必须被抱抱十次，你确定吗？', fx:'spin' } ],
+  [ { q:'带我去兜风', a:'系好安全带！……开玩笑的，飞机正忙着在天上写字呢。', fx:'dance' },
+    { q:'天上写的是什么？', a:'小猪统治宇宙！全星球投票通过的，一票都没反对。', fx:'jump' } ],
+  [ { q:'来一碗招牌面', a:'小炒黄牛肉拌面一碗！两个煎鸡蛋不要钱，收你一个笑脸。', fx:'hearts' },
+    { q:'偷吃一口', a:'被我抓到啦！算了算了，寿星吃什么都是对的。', fx:'spin' } ],
+  [ { q:'医生，我有点累', a:'张嘴，啊——诊断完毕：缺觉、缺零食、缺抱抱。今晚早点睡！', fx:'hearts' },
+    { q:'能开张假条吗', a:'批准！假条内容：今天只负责开心，别的都不用管。', fx:'jump' } ],
+  [ { q:'来一块草莓蛋糕', a:'草莓最大的那块给你留着呢！奶油要自己舔干净哦。', fx:'hearts' },
+    { q:'能教我做蛋糕吗', a:'第一步：先吃十块蛋糕找找感觉。第二步：再吃十块。', fx:'dance' } ],
+  [ { q:'看看你的实验', a:'这瓶是开心泡泡，闻一下会一直笑。你已经在笑了，对吧？', fx:'dance' },
+    { q:'帮我测测可爱值', a:'滴——测量失败，你的可爱值超出了仪器量程。', fx:'jump' } ],
+  [ { q:'我来帮忙搬砖', a:'谢谢！这块砖我给你签个名，以后砌在顶楼。', fx:'jump' },
+    { q:'楼什么时候盖好？', a:'快了快了！盖好那天，顶楼的窗户正好看得到日落。', fx:'spin' } ],
+  [ { q:'借一本书', a:'《甘源源》暂时不外借，还在写呢。先借你一本《如何每天都开心》。', fx:'hearts' },
+    { q:'最厚那本写到哪了？', a:'写到今天啦。明天那页，等你自己来写。', fx:'jump' } ],
+];
+const PAT = { q:'摸摸头', a:'（开心地哼哼了两声，尾巴转了好几圈）', fx:'hearts' };
+const YY_CHAT = { name:'寿星小猪', line:'今天是我的生日！谢谢你走了这么远来找我。',
+  opts: [ { q:'生日快乐！', a:'嘿嘿，谢谢！蛋糕上的蜡烛，等你一起来吹。', fx:'jump' },
+          { q:'要一个抱抱', a:'抱抱！（小猪用力抱住了你，还蹭了蹭）', fx:'hearts' },
+          { q:'读那封信', letter:true } ] };
 /* ===================================== */
 
 const R = 8, D2R = Math.PI/180, UP = new THREE.Vector3(0,1,0);
@@ -648,7 +700,13 @@ function tree() {
   }
   g.scale.setScalar(.8 + rand()*.6); return g;
 }
-for (let i = 0; i < 46; i++) { const d = freeDir(); if (d) plant(tree(), d, -.05); }
+const obstacles = [];
+const addObs = (p, r) => obstacles.push({ p: p.clone().setLength(R), r });
+stations.forEach(s => {
+  const g = s.group, at = (x, z) => new THREE.Vector3(x, 0, z).applyQuaternion(g.quaternion).add(g.position);
+  addObs(at(0, -.5), 1.45); addObs(at(.15, 1.05), .4); addObs(at(-1.55, .7), .15); addObs(at(1.55, .7), .15);
+});
+for (let i = 0; i < 46; i++) { const d = freeDir(); if (d) { plant(tree(), d, -.05); addObs(d, .3); } }
 const flowerC = ['#ff8fab', '#ffd166', '#ffffff', '#b39ddb', '#ff6f9c'];
 for (let i = 0; i < 80; i++) {
   const d = freeDir(.28); if (!d) continue;
@@ -810,7 +868,7 @@ function flyTo(q, pos, target, dur = 1.5, soft = false, onDone) {
 function stepTween(dt) {
   const w = tween; w.t += dt; const k = Math.min(1, w.t/w.dur);
   const e = k < .5 ? 4*k*k*k : 1 - Math.pow(-2*k + 2, 3)/2;
-  world.quaternion.slerpQuaternions(w.q0, w.q1, e);
+  w.e = e; world.quaternion.slerpQuaternions(w.q0, w.q1, e);
   camera.position.lerpVectors(w.p0, w.p1, e); camTarget.lerpVectors(w.t0, w.t1, e);
   if (k >= 1) { tween = null; w.onDone?.(); }
 }
@@ -822,13 +880,28 @@ function setZoom(d) {
   camera.position.sub(camTarget).setLength(d).add(camTarget);
 }
 
-function visit(i) {
+function showOptions(list, onPick) {
+  const box = $('cOpts'); box.replaceChildren();
+  list.forEach(o => {
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'opt'; b.textContent = o.q;
+    b.onclick = () => { b.classList.add('used'); onPick(o); };
+    box.appendChild(b);
+  });
+}
+function react(s, fx) {
+  s.react = { type: fx, t: 0 };
+  if (fx === 'hearts') { const wp = new THREE.Vector3(); s.pig.getWorldPosition(wp); wp.addScaledVector(s.dir.clone().applyQuaternion(world.quaternion), .9); burst(wp, '#ff6f9c', 36, 1.6, 1.1, .3); }
+}
+function visit(i, fly = true) {
   const r = ROLES[i], s = stations[i];
   visited.add(i); try { localStorage.setItem('pig-planet-visited', JSON.stringify([...visited])); } catch (e) {}
   $('cRole').textContent = r.role; $('cName').textContent = r.name; $('cLine').textContent = r.line;
   $('cCount').textContent = `已拜访 ${visited.size} / ${ROLES.length}`;
+  showOptions([...(CHATS[i] || []), PAT], o => { $('cLine').textContent = o.a; react(s, o.fx); });
   $('card').hidden = false; $('dock').hidden = true; $('letter').hidden = true;
   cardOpen = true; partyView = false; letterAt = Infinity;
+  refreshUI();
+  if (walking || !fly) { react(s, 'jump'); return; }
   const tgt = new THREE.Vector3(0, .77, .64).multiplyScalar(R + .7).add(new THREE.Vector3(0, -.64, .77).multiplyScalar(.45));
   flyTo(faceQuat(s.group), tgt.clone().addScaledVector(VIEW, dists().focus), tgt, 1.5, false, () => {
     const wp = new THREE.Vector3(); s.pig.getWorldPosition(wp); wp.y += .9;
@@ -836,16 +909,32 @@ function visit(i) {
   });
   refreshUI();
 }
-function closeCard() { $('card').hidden = true; $('dock').hidden = false; cardOpen = false; lastInteract = clock.elapsedTime - 4; flyHome(); }
+function closeCard() {
+  $('card').hidden = true; cardOpen = false;
+  if (walking) return;
+  $('dock').hidden = false; lastInteract = clock.elapsedTime - 4; flyHome();
+}
 $('cClose').onclick = closeCard;
 $('partyBtn').onclick = startParty;
-$('letterClose').onclick = () => { $('letter').hidden = true; partyView = false; $('dock').hidden = false; lastInteract = clock.elapsedTime; flyHome(); };
+$('letterClose').onclick = () => {
+  $('letter').hidden = true; lastInteract = clock.elapsedTime;
+  if (walking) return;
+  partyView = false; $('dock').hidden = false; flyHome();
+};
+let restartArmed = 0;
 $('restartBtn').onclick = () => {
-  if (visited.size && !confirm('重新开始？已点亮的心心会清空。')) return;
+  const btn = $('restartBtn');
+  if (visited.size && Date.now() - restartArmed > 3000) {
+    restartArmed = Date.now(); btn.classList.add('armed'); btn.title = '再点一次：清空进度，重新开始';
+    setTimeout(() => { btn.classList.remove('armed'); btn.title = '重新开始'; }, 3000);
+    return;
+  }
   try { localStorage.removeItem('pig-planet-visited'); } catch (e) {}
-  location.replace(location.pathname + location.search);
+  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) {}
+  location.reload();
 };
 function startParty() {
+  if (walking) { walking = false; walkIntro = null; setWalkUI(); }
   $('card').hidden = true; cardOpen = false; $('dock').hidden = true; partyView = true;
   if (!partied) { partied = true; partyT = 0; document.body.classList.add('party'); plaza.visible = true; }
   letterAt = partyT < 1 ? 5.5 : partyT + 2;
@@ -853,6 +942,137 @@ function startParty() {
   flyTo(faceQuat(plaza, a, b), tgt.clone().addScaledVector(VIEW, dists().party), tgt, 2.4);
   refreshUI();
 }
+
+/* ---------- walking on the planet ----------
+   A tiny first-person mode: the player is a point on the sphere with a forward
+   direction that is carried along the surface as they move. */
+const EYE = 1.0, WALK = 2.2;
+let walking = false, walkIntro = null, near = null, nearKey = null, yyReact = null;
+const me = { p: new THREE.Vector3(0, R, 0), f: new THREE.Vector3(0, 0, -1), pitch: 0, bob: 0 };
+const meW = new THREE.Vector3(), keys = new Set(), joy = new THREE.Vector2();
+const _wp = new THREE.Vector3(), _wq = new THREE.Quaternion(), _qp = new THREE.Quaternion(), _x = new THREE.Vector3(), XAXIS = new THREE.Vector3(1, 0, 0);
+function walkPose(outPos, outQuat) {
+  const n = me.p.clone().normalize();
+  _x.crossVectors(me.f, n).normalize();
+  outQuat.setFromRotationMatrix(new THREE.Matrix4().makeBasis(_x, n, me.f.clone().negate()))
+    .multiply(_qp.setFromAxisAngle(XAXIS, me.pitch)).premultiply(world.quaternion);
+  outPos.copy(n).multiplyScalar(R + EYE + Math.sin(me.bob)*.03).applyQuaternion(world.quaternion);
+}
+let _pObs = null;
+function plazaObstacles() {
+  if (_pObs) return _pObs;
+  const g = plaza, at = (x, z) => new THREE.Vector3(x, 0, z).applyQuaternion(g.quaternion).add(g.position).setLength(R);
+  _pObs = [[0, -.1, .55], [-.75, -.1, .55], [.75, -.1, .55], [0, -1.2, .45],
+    [-1.75, -.2, .3], [1.75, -.2, .3], [-1.35, -1.15, .3], [1.35, -1.15, .3], [-1.5, .85, .3], [1.5, .85, .3]].map(([x, z, r]) => ({ p: at(x, z), r }));
+  return _pObs;
+}
+function collide() {
+  const list = plaza.visible ? obstacles.concat(plazaObstacles()) : obstacles;
+  for (let k = 0; k < 2; k++) for (const o of list) {
+    const d = me.p.distanceTo(o.p), min = o.r + .35;
+    if (d < min && d > 1e-5) me.p.sub(o.p).setLength(min).add(o.p);
+  }
+  me.p.setLength(R);
+  const n = me.p.clone().normalize(); me.f.addScaledVector(n, -me.f.dot(n)).normalize();
+}
+function setWalkUI() {
+  $('dock').hidden = walking || cardOpen || partyView;
+  for (const id of ['exitWalk', 'joy', 'keysHelp', 'crosshair']) $(id).hidden = !walking;
+  if (!walking) { $('talkBtn').hidden = true; near = null; nearKey = null; }
+}
+function enterWalk() {
+  if (walking) return;
+  $('card').hidden = true; cardOpen = false; partyView = false; tween = null; spinVel.set(0, 0, 0);
+  const inv = world.quaternion.clone().invert();
+  // land in front of the pig nearest to the middle of the screen, facing it
+  const look = camera.position.clone().applyQuaternion(inv);
+  let g = stations[0].group, bd = Infinity;
+  stations.forEach(s => { const d = s.group.position.distanceTo(look); if (d < bd) { bd = d; g = s.group; } });
+  const at = (x, z) => new THREE.Vector3(x, 0, z).applyQuaternion(g.quaternion).add(g.position);
+  me.p.copy(at(.15, 3.3)).setLength(R);
+  const n = me.p.clone().normalize();
+  me.f.copy(at(.15, 1.05)).sub(me.p); me.f.addScaledVector(n, -me.f.dot(n)).normalize();
+  me.pitch = -.16;
+  collide();
+  walking = true;
+  walkIntro = { t: 0, p0: camera.position.clone(), q0: camera.quaternion.clone() };
+  setWalkUI();
+}
+function exitWalk() {
+  if (!walking) return;
+  walking = false; walkIntro = null; keys.clear(); joy.set(0, 0);
+  $('card').hidden = true; cardOpen = false;
+  const n = me.p.clone().normalize(), back = me.f.clone().negate(), x = new THREE.Vector3().crossVectors(n, back);
+  const qL = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(x, n, back));
+  const a = .5, b = .87;
+  const qT = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(XAXIS, new THREE.Vector3(0, a, b), new THREE.Vector3(0, -b, a)));
+  camTarget.copy(camera.position).add(new THREE.Vector3(0, 0, -3).applyQuaternion(camera.quaternion));
+  flyTo(qT.multiply(qL.invert()), new THREE.Vector3(0, 0, dists().overview*.9), new THREE.Vector3(), 1.8, true);
+  tween.cq0 = camera.quaternion.clone();
+  lastInteract = clock.elapsedTime;
+  setWalkUI();
+}
+function walkStep(dt) {
+  const n = me.p.clone().normalize();
+  let fwd = 0, side = 0, turn = 0;
+  if (!cardOpen && $('letter').hidden) {
+    if (keys.has('w') || keys.has('arrowup')) fwd += 1;
+    if (keys.has('s') || keys.has('arrowdown')) fwd -= 1;
+    if (keys.has('d')) side += 1;
+    if (keys.has('a')) side -= 1;
+    if (keys.has('arrowleft')) turn += 1;
+    if (keys.has('arrowright')) turn -= 1;
+    fwd -= joy.y; side += joy.x;
+  }
+  if (turn) me.f.applyAxisAngle(n, turn*1.8*dt);
+  const len = Math.hypot(fwd, side);
+  if (len > .08) {
+    const sp = WALK*(keys.has('shift') ? 1.7 : 1)*Math.min(1, len);
+    const right = new THREE.Vector3().crossVectors(me.f, n);
+    me.p.add(me.f.clone().multiplyScalar(fwd).addScaledVector(right, side).normalize().multiplyScalar(sp*dt));
+    me.f.applyQuaternion(qTmp.setFromUnitVectors(n, me.p.clone().normalize()));
+    me.bob += dt*sp*4.5;
+    collide();
+  }
+  // who is close enough to talk to?
+  meW.copy(me.p).applyQuaternion(world.quaternion);
+  let best = null, bd = 2.4; const v = new THREE.Vector3();
+  stations.forEach((s, i) => { s.pig.getWorldPosition(v); const d = v.distanceTo(meW); if (d < bd) { bd = d; best = { i }; } });
+  if (plaza.visible) { plaza.userData.yy.getWorldPosition(v); if (v.distanceTo(meW) < 2.6) best = { yy: true }; }
+  const key = best ? (best.yy ? 'yy' : best.i) : null;
+  if (key !== nearKey) { nearKey = key; near = best; if (best) $('talkBtn').textContent = `和${best.yy ? YY_CHAT.name : ROLES[best.i].name}聊聊`; }
+  $('talkBtn').hidden = !near || cardOpen || !$('letter').hidden;
+  $('joy').hidden = cardOpen || !$('letter').hidden;
+}
+function talkYY() {
+  $('cRole').textContent = '寿星'; $('cName').textContent = YY_CHAT.name; $('cLine').textContent = YY_CHAT.line;
+  $('cCount').textContent = '生日快乐';
+  showOptions(YY_CHAT.opts, o => {
+    if (o.letter) { $('card').hidden = true; cardOpen = false; $('letter').hidden = false; return; }
+    $('cLine').textContent = o.a; yyReact = { t: 0 };
+    if (o.fx === 'hearts') { const wp = new THREE.Vector3(); plaza.userData.yy.getWorldPosition(wp); wp.addScaledVector(wp.clone().normalize(), 1.1); burst(wp, '#ff6f9c', 40, 1.6, 1.1, .3); }
+  });
+  $('card').hidden = false; cardOpen = true; yyReact = { t: 0 };
+}
+function talkNear() { if (!near || cardOpen) return; if (near.yy) talkYY(); else visit(near.i, false); }
+$('walkBtn').onclick = enterWalk;
+$('exitWalk').onclick = exitWalk;
+$('talkBtn').onclick = talkNear;
+{
+  const joyEl = $('joy'), knob = $('knob'); let joyId = null;
+  const move = e => {
+    const r = joyEl.getBoundingClientRect();
+    let x = (e.clientX - r.left - r.width/2)/(r.width/2), y = (e.clientY - r.top - r.height/2)/(r.height/2);
+    const l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; }
+    joy.set(x, y); knob.style.transform = `translate(${x*36}px,${y*36}px)`;
+  };
+  joyEl.addEventListener('pointerdown', e => { joyId = e.pointerId; try { joyEl.setPointerCapture(e.pointerId); } catch (err) {} move(e); });
+  joyEl.addEventListener('pointermove', e => { if (e.pointerId === joyId) move(e); });
+  const end = e => { if (e.pointerId !== joyId) return; joyId = null; joy.set(0, 0); knob.style.transform = ''; };
+  joyEl.addEventListener('pointerup', end); joyEl.addEventListener('pointercancel', end);
+}
+addEventListener('keyup', e => keys.delete(e.key.toLowerCase()));
+addEventListener('blur', () => keys.clear());
 
 /* ---------- pointer: drag to turn, pinch / wheel to zoom, tap to visit ---------- */
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
@@ -881,6 +1101,12 @@ canvas.addEventListener('pointermove', e => {
   if (!p) { hover(e); return; }
   const dx = e.clientX - p.x, dy = e.clientY - p.y; p.x = e.clientX; p.y = e.clientY;
   moved += Math.abs(dx) + Math.abs(dy); lastInteract = clock.elapsedTime;
+  if (walking) {
+    if (pts.size !== 1 || cardOpen || walkIntro) return;
+    me.f.applyAxisAngle(me.p.clone().normalize(), -dx*.005);
+    me.pitch = Math.max(-.75, Math.min(.6, me.pitch - dy*.004));
+    return;
+  }
   if (pts.size === 2 && pinch) { const [a, b] = [...pts.values()]; setZoom(pinch.z*pinch.d/Math.max(20, Math.hypot(a.x - b.x, a.y - b.y))); return; }
   if (cardOpen || partyView || tween) return;
   const ang = Math.hypot(dx, dy)*3.2/Math.min(innerWidth, innerHeight);
@@ -895,7 +1121,12 @@ const endPtr = e => {
   pts.delete(e.pointerId); if (pts.size < 2) pinch = null;
   if (e.type === 'pointerup' && tapOK && moved < 8 && pts.size === 0) {
     const o = hitTarget(e);
-    if (o) { if (o.userData.plaza) startParty(); else visit(o.userData.station); }
+    if (walking) {
+      if (o && o.userData.plaza) talkYY();
+      else if (o && o.userData.station !== undefined && o !== plane) { const s = stations[o.userData.station]; const v = new THREE.Vector3(); s.pig.getWorldPosition(v); if (v.distanceTo(camera.position) < 7) visit(o.userData.station, false); }
+      else if (cardOpen) closeCard();
+    }
+    else if (o) { if (o.userData.plaza) startParty(); else visit(o.userData.station); }
     else if (cardOpen) closeCard();
   }
   if (pts.size === 0) tapOK = false;
@@ -911,7 +1142,14 @@ function hover(e) {
   if (e.pointerType !== 'mouse' || hoverQueued) return; hoverQueued = true;
   requestAnimationFrame(() => { hoverQueued = false; canvas.style.cursor = hitTarget(e) ? 'pointer' : 'grab'; });
 }
-addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('letter').hidden) $('letterClose').click(); else if (cardOpen) closeCard(); } });
+addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'escape') { if (!$('letter').hidden) $('letterClose').click(); else if (cardOpen) closeCard(); else if (walking) exitWalk(); return; }
+  if (!walking) return;
+  if (k === 'e') { talkNear(); return; }
+  if (k.startsWith('arrow') || k === ' ') e.preventDefault();
+  keys.add(k);
+});
 addEventListener('resize', () => {
   camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
@@ -926,15 +1164,28 @@ const easeBack = k => { const c = 1.7; return 1 + (c + 1)*Math.pow(k - 1, 3) + c
 function loop() {
   const dt = Math.min(clock.getDelta(), .05), t = clock.elapsedTime;
 
-  if (tween) stepTween(dt);
-  else if (!cardOpen && !partyView && pts.size === 0) {
-    if (spinVel.lengthSq() > 1e-8) {
-      world.quaternion.premultiply(qTmp.setFromAxisAngle(tmp.copy(spinVel).normalize(), spinVel.length()*dt*60));
-      spinVel.multiplyScalar(Math.pow(.9, dt*60));
-    } else if (!reduce && t - lastInteract > 7) world.quaternion.premultiply(qTmp.setFromAxisAngle(UP, .09*dt));
+  if (walking) {
+    walkStep(dt);
+    walkPose(_wp, _wq);
+    if (walkIntro) {
+      walkIntro.t += dt; const k = Math.min(1, walkIntro.t/1.4), e = k < .5 ? 4*k*k*k : 1 - Math.pow(-2*k + 2, 3)/2;
+      camera.position.lerpVectors(walkIntro.p0, _wp, e); camera.quaternion.slerpQuaternions(walkIntro.q0, _wq, e);
+      if (k >= 1) walkIntro = null;
+    } else { camera.position.copy(_wp); camera.quaternion.copy(_wq); }
+  } else {
+    if (tween) stepTween(dt);
+    else if (!cardOpen && !partyView && pts.size === 0) {
+      if (spinVel.lengthSq() > 1e-8) {
+        world.quaternion.premultiply(qTmp.setFromAxisAngle(tmp.copy(spinVel).normalize(), spinVel.length()*dt*60));
+        spinVel.multiplyScalar(Math.pow(.9, dt*60));
+      } else if (!reduce && t - lastInteract > 7) world.quaternion.premultiply(qTmp.setFromAxisAngle(UP, .09*dt));
+    }
+    world.quaternion.normalize();
+    camera.lookAt(camTarget);
+    if (tween && tween.cq0) camera.quaternion.slerpQuaternions(tween.cq0, camera.quaternion.clone(), tween.e || 0);
   }
-  world.quaternion.normalize();
-  camera.lookAt(camTarget);
+  const fovWant = walking ? 64 : 38;
+  if (Math.abs(camera.fov - fovWant) > .05) { camera.fov += (fovWant - camera.fov)*Math.min(1, dt*3); camera.updateProjectionMatrix(); }
   const want = cardOpen ? Math.min(innerHeight*.3, $('card').offsetHeight*.55) : 0;
   if (Math.abs(viewShift - want) > .5 || viewShift !== 0) {
     viewShift += (want - viewShift)*Math.min(1, dt*6);
@@ -945,9 +1196,21 @@ function loop() {
   tmp.set(10, 16, 4).applyQuaternion(camera.quaternion).add(camera.position);
   sun.position.copy(tmp);
 
+  const lp = new THREE.Vector3();
   stations.forEach(s => {
     const k = Math.sin(t*2.4 + s.phase);
     s.pig.position.y = .05 + Math.abs(k)*.05; s.pig.rotation.z = k*.04;
+    let face = 0, spin = 0;
+    if (walking) { lp.copy(meW); s.group.worldToLocal(lp); if (lp.distanceTo(s.pig.position) < 4.5) face = Math.atan2(lp.x - s.pig.position.x, lp.z - s.pig.position.z); }
+    s.face = s.face || 0; const df = Math.atan2(Math.sin(face - s.face), Math.cos(face - s.face)); s.face += df*Math.min(1, dt*5);
+    if (s.react) {
+      const r = s.react; r.t += dt; const f = Math.max(0, 1 - r.t/1.4);
+      if (r.type === 'jump' || r.type === 'hearts') s.pig.position.y += Math.abs(Math.sin(r.t*7))*.3*f;
+      if (r.type === 'spin') spin = Math.min(1, r.t/.9)*Math.PI*2;
+      if (r.type === 'dance') s.pig.rotation.z = Math.sin(r.t*14)*.3*f;
+      if (r.t > 1.6) s.react = null;
+    }
+    s.pig.rotation.y = s.face + spin;
     s.anim(t);
     s.marker.position.y = 1.8 + Math.sin(t*2 + s.phase)*.08;
   });
@@ -967,6 +1230,7 @@ function loop() {
     plaza.userData.balloons.forEach((b, i) => { b.rotation.z = Math.sin(t*1.2 + i)*.06; b.rotation.x = Math.cos(t*1.1 + i)*.05; });
     plaza.userData.guests.forEach(p => { p.position.y = .05 + Math.abs(Math.sin(t*4 + p.userData.guestPhase))*.12; });
     const yy = plaza.userData.yy; yy.position.y = .05 + Math.abs(Math.sin(t*3))*.1;
+    if (yyReact) { yyReact.t += dt; yy.position.y += Math.abs(Math.sin(yyReact.t*7))*.3*Math.max(0, 1 - yyReact.t/1.4); if (yyReact.t > 1.6) yyReact = null; }
     yy.userData.armL.rotation.z = Math.sin(t*6)*.3; yy.userData.armR.rotation.z = -Math.sin(t*6)*.3;
     if (partyT > letterAt) { letterAt = Infinity; $('letter').hidden = false; }
     fwTimer -= dt;
