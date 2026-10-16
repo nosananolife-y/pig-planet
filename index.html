@@ -37,6 +37,10 @@ body.party #sky::after{opacity:1}
 body.party .brand h1{color:#fff}
 body.party .brand p{color:#f4cfe0}
 
+.restart{position:fixed;top:calc(env(safe-area-inset-top,0px) + 18px);right:max(18px,env(safe-area-inset-right,0px));width:44px;height:44px;border:0;border-radius:50%;background:var(--glass);color:var(--accent-deep);display:grid;place-items:center;cursor:pointer;padding:0;box-shadow:0 6px 24px rgba(120,40,80,.12);transition:transform .2s,background .2s}
+.restart:hover{transform:rotate(-30deg)}
+.restart svg{width:22px;height:22px}
+
 .dock{position:fixed;left:0;right:0;bottom:calc(env(safe-area-inset-bottom,0px) + 18px);display:flex;flex-direction:column;align-items:center;gap:10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));pointer-events:none}
 .dock > *{pointer-events:auto}
 .noses{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:8px 12px;border-radius:999px;background:var(--glass);box-shadow:0 6px 24px rgba(120,40,80,.12)}
@@ -45,7 +49,7 @@ body.party .brand p{color:#f4cfe0}
 .nose.on{background:var(--accent)}
 .nose.on::before,.nose.on::after{background:#fff}
 .nose:hover{transform:translateY(-2px)}
-.nose:focus-visible,.btn:focus-visible{outline:3px solid var(--accent-deep);outline-offset:2px}
+.nose:focus-visible,.btn:focus-visible,.restart:focus-visible{outline:3px solid var(--accent-deep);outline-offset:2px}
 .hint{font-size:13px;color:var(--ink-soft);letter-spacing:.06em;text-align:center;margin:0;transition:color 2s}
 body.party .hint{color:#f4cfe0}
 .btn{font-family:var(--font-display);font-size:18px;letter-spacing:.08em;border:0;border-radius:999px;padding:12px 26px;background:var(--accent);color:#fff;cursor:pointer;box-shadow:0 8px 22px rgba(217,74,124,.35);transition:transform .2s,background .2s}
@@ -87,6 +91,10 @@ body.party .hint{color:#f4cfe0}
   <h1>小猪星球</h1>
 </header>
 
+<button class="restart" id="restartBtn" title="重新开始" aria-label="重新开始">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+</button>
+
 <div class="dock" id="dock">
   <div class="noses" id="noses" role="list" aria-label="拜访进度"></div>
   <p class="hint" id="hint">拖动转动星球 · 点一只小猪去拜访它</p>
@@ -113,11 +121,9 @@ body.party .hint{color:#f4cfe0}
 它们有的当国王，有的开飞机，有的做蛋糕，有的守着一整座图书馆，每一只都在做自己最喜欢的事。
 
 我希望你也一样：
-一直做喜欢的事，一直被好好爱着，一直是那个可可爱爱的小猪。
-
-今年的生日愿望，我先替你许好一个：
-以后的每一个生日，我都在。</p>
-    <p class="sign">—— 朴</p>
+一直做喜欢的事，吃喜欢的食物，一直相信自己。
+全宇宙的幸运都降临在小猪身边！</p>
+    <p class="sign">—— 张朴</p>
     <div class="row"><button class="btn" id="letterClose">回到星球</button></div>
   </article>
 </div>
@@ -834,6 +840,11 @@ function closeCard() { $('card').hidden = true; $('dock').hidden = false; cardOp
 $('cClose').onclick = closeCard;
 $('partyBtn').onclick = startParty;
 $('letterClose').onclick = () => { $('letter').hidden = true; partyView = false; $('dock').hidden = false; lastInteract = clock.elapsedTime; flyHome(); };
+$('restartBtn').onclick = () => {
+  if (visited.size && !confirm('重新开始？已点亮的心心会清空。')) return;
+  try { localStorage.removeItem('pig-planet-visited'); } catch (e) {}
+  location.replace(location.pathname + location.search);
+};
 function startParty() {
   $('card').hidden = true; cardOpen = false; $('dock').hidden = true; partyView = true;
   if (!partied) { partied = true; partyT = 0; document.body.classList.add('party'); plaza.visible = true; }
